@@ -8,6 +8,7 @@ class Game
   include KeyPegs
   include DisplayText
   attr_accessor :code_maker, :code_breaker, :keypegs, :code_breaker_attempts
+  attr_accessor :code, :game, :try, :score
   attr_reader :num_of_games, :codepeg_size, :max_tries, :codepeg_colors
 
   def initialize(code_maker, code_breaker, num_of_games)
@@ -19,44 +20,97 @@ class Game
     @codepeg_colors = %w[r g b o y m]
     @keypegs = {}
     @code_breaker_attempts = {}
+    @game = 1
+    @try = 1
   end
 
   def play_game
     num_of_games.times do
-      max_tries.times do |try|
-        play_round(code_maker, code_breaker, codepeg_size, try)
-        break if winner?(try)
+      set_code
+      max_tries.times do
+        play_round
+        display_score and break if winner?
+
+        self.try += 1
       end
-      # swap_players
+      initialize_next_game
     end
+    puts declare_winner
   end
 
   private
 
-  def play_round(code_maker, code_breaker, codepeg_size, try)
-    puts "Attempt: #{try + 1}"
-    @code = code_maker.choose_code(codepeg_colors, codepeg_size) if try.zero?
-    code_breaker_guess = code_breaker.guess(codepeg_colors, codepeg_size)
+  def play_round
+    puts "Game: #{game} Try: #{try}"
+    code_breaker_guess = guess
     code_breaker_attempts[try] = code_breaker_guess
-    keypegs[try] = get_keypegs(@code, code_breaker_guess)
-    puts "Attempt => #{display_hash(code_breaker_attempts)}"
-    puts "Keypegs => #{display_hash(keypegs)} \n "
+    keypegs[try] = get_keypegs(code, code_breaker_guess)
+    display_results
   end
 
-  def winner?(try)
-    if keypegs[try].all? { |peg| peg == 'b' } && keypegs[try].length == codepeg_size
+  def guess
+    code_breaker.guess(codepeg_colors, codepeg_size, keypegs, code_breaker_attempts, try)
+  end
+
+  def winner?
+    if all_b?
       puts "#{code_breaker.name} cracked the code!"
       true
-    elsif try == max_tries - 1
+    elsif try == max_tries
       puts "#{code_maker.name}'s code was never cracked!"
-      puts 'Code: '
+      puts "Code: #{code.join}"
       true
     end
+  end
+
+  def display_score
+    update_score
+    names = score.keys
+    scores = score.values
+    puts "Score: #{names.first}: #{scores.first} | #{names.last}: #{scores.last}"
+    puts
+    true
+  end
+
+  def update_score
+    code_maker = self.code_maker.name
+    self.score = { code_breaker.name => 0, code_maker => 0 } if score.nil?
+    attempts = code_breaker_attempts.length
+    attempts += 1 if attempts == max_tries
+    score[code_maker] += attempts
+  end
+
+  def declare_winner
+    names = score.keys
+    scores = score.values
+    "#{names.first} WINS!" if scores.first > scores.last
+    "#{names.last} WINS!" if scores.first < scores.last
+    'TIE!'
+  end
+
+  def all_b?
+    keypegs[try].count('b') == codepeg_size
+  end
+
+  def initialize_next_game
+    self.game += 1
+    self.try = 1
+    reset_game
+    swap_players
   end
 
   def swap_players
     temp = code_maker
     self.code_maker = code_breaker
     self.code_breaker = temp
+  end
+
+  def reset_game
+    code_breaker_attempts.clear
+    keypegs.clear
+  end
+
+  def set_code
+    self.code = code_maker.choose_code(codepeg_colors, codepeg_size)
   end
 end

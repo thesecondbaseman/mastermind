@@ -14,4 +14,9 @@ module DisplayText
     initial_format = "#{key}: #{hash[key].join}"
     initial_format + (' ' * (size - initial_format.length))
   end
+
+  def display_results
+    puts "Attempt => #{display_hash(code_breaker_attempts)}"
+    puts "Keypegs => #{display_hash(keypegs)} \n "
+  end
 end
