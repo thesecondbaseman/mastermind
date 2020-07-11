@@ -1,16 +1,18 @@
 # frozen_string_literal: true
 
+require_relative 'keypegs'
+
 # Artificial Intelligence Module for Computer
 module ArtificialIntelligence
+  include KeyPegs
   def intelligent_guess(codepeg_size, attempts)
     loop do
-      b_count = best_guess.last[:b]
-      w_count = best_guess.last[:w]
+      keypegs = best_guess.last
       best_guess = self.best_guess.first
-      new_guess = get_b_codepegs(best_guess, b_count, codepeg_size)
-      new_guess = get_w_codepegs(best_guess, new_guess, w_count, codepeg_size)
+      new_guess = get_b_codepegs(best_guess, keypegs[:b], codepeg_size)
+      new_guess = get_w_codepegs(best_guess, new_guess, keypegs[:w], codepeg_size)
       new_guess = guess_empty_slots(codepeg_size, new_guess)
-      return new_guess if okay?(new_guess, attempts, best_guess, b_count, w_count)
+      return new_guess if okay?(new_guess, attempts, best_guess, keypegs)
     end
   end
 
@@ -19,7 +21,7 @@ module ArtificialIntelligence
     new_indexes = available_indexes.clone
     w_count.times do
       index = available_indexes.sample
-      new_index = (new_indexes - [index]).sample
+      new_index = (new_indexes - [index]).sample || index
       new_guess[new_index] = best_guess[index]
       available_indexes.delete(index)
       new_indexes.delete(new_index)
@@ -33,34 +35,19 @@ module ArtificialIntelligence
     indexes
   end
 
-  def okay?(new_guess, attempts, best_guess, b_count, w_count)
-    return false unless no_dupe?(new_guess, attempts)
-    return false unless same_b_count?(best_guess, b_count, new_guess)
-    return false unless same_w_count?(best_guess, w_count, new_guess)
-
-    true
+  def okay?(new_guess, attempts, best_guess, keypegs)
+    true if no_dupe?(new_guess, attempts) && same_keypegs(best_guess, new_guess, keypegs) && available?(new_guess)
   end
 
-  def same_w_count?(best_guess, w_count, new_guess)
-    w_indexes = []
-    banned_indexes = []
-    new_guess.each_with_index do |codepeg, index|
-      banned_indexes << index and next if best_guess[index] == codepeg
-
-      get_possible_swaps(best_guess, banned_indexes, w_indexes, index).each do |swap_index|
-        w_indexes << swap_index if codepeg == best_guess[swap_index]
-      end
-    end
-    w_indexes.uniq.length == w_count || w_count.zero?
+  def same_keypegs(best_guess, new_guess, best_guess_keypegs)
+    new_guess_keypegs = get_keypegs(best_guess, new_guess)
+    new_guess_b_count = new_guess_keypegs.count('b')
+    new_guess_w_count = new_guess_keypegs.count('w')
+    return true if new_guess_b_count == best_guess_keypegs[:b] && new_guess_w_count == best_guess_keypegs[:w]
   end
 
   def get_possible_swaps(best_guess, banned_indexes, w_indexes, index)
     (0...best_guess.length).to_a - banned_indexes - w_indexes - [index]
-  end
-
-  def same_b_count?(best_guess, b_count, new_guess)
-    best_guess.each_index { |i| b_count -= 1 if best_guess[i] == new_guess[i] }
-    true if b_count.zero?
   end
 
   def no_dupe?(guess, attempts)
@@ -71,18 +58,18 @@ module ArtificialIntelligence
   def get_b_codepegs(best_guess, b_count, codepeg_size)
     new_guess = []
     indexes = (0...codepeg_size).to_a.shuffle
-    until b_count.zero?
+    b_count.times do
       index = indexes.pop
-      if available?(index, best_guess[index])
-        new_guess[index] = best_guess[index]
-        b_count -= 1
-      end
+      new_guess[index] = best_guess[index]
     end
     new_guess
   end
 
-  def available?(index, codepeg)
-    possible_codes[index].include?(codepeg)
+  def available?(guess)
+    guess.each_with_index do |codepeg, index|
+      return false unless possible_codes[index].include?(codepeg)
+    end
+    true
   end
 
   def guess_empty_slots(codepeg_size, new_guess = [])
