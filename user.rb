@@ -7,9 +7,9 @@ class User
     @name = name
   end
 
-  def guess(available_codes, codepeg_size)
+  def guess(available_codes, codepeg_size, *_)
     loop do
-      puts "Available codes: #{available_codes}"
+      puts "Available codes: #{available_codes.join(',')}"
       puts 'Enter code in this example format: ygbo'
       input = gets.chomp.split ''
       next if input.length != codepeg_size
@@ -18,14 +18,18 @@ class User
   end
   
   def choose_code(available_codes, codepeg_size)
-    selected_codes = []
     loop do
-      !selected_codes.empty? and puts "Your code: #{selected_codes}"
-      print "Enter available codes #{available_codes}: "
-      input = gets.chomp
-      selected_codes << input if available_codes.include? input
-      break if selected_codes.length == codepeg_size
+      print "Enter available codes: #{available_codes.join(',')}: "
+      input = gets.chomp.split('')
+      next unless valid_chars(input, available_codes)
+      return input if input.length == codepeg_size
     end
-    selected_codes
+  end
+
+  def valid_chars(input, available_codes)
+    input.each do |char|
+      return false unless available_codes.include? char
+    end
+    true
   end
 end
